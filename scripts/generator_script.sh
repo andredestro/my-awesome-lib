@@ -43,7 +43,7 @@ LC_CTYPE=C && LANG=C && find . -type f -exec sed -e "s/organizationIDPlaceholder
 rm -f .git/index
 git reset
 git add .
-git commit -m "Finish initialisation by running the generator script."
+git commit -m "Finish initialization by running the generator script."
 git push
 
 ### Close
