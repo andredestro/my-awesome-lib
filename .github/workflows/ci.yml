@@ -19,27 +19,24 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
+      - name: Make project_tools.sh executable
+        run: chmod +x scripts/project_tools.sh
+
       - name: Install Dependencies
-        run: |
-          chmod +x scripts/run_tests.sh
-          scripts/run_tests.sh install-deps
-          
+        run: scripts/project_tools.sh install-deps
+
       - name: Run Unit Tests
-        run: |
-          scripts/run_tests.sh test
+        run: scripts/project_tools.sh test
 
       - name: Extract Code Coverage
-        run: |
-          scripts/run_tests.sh coverage
+        run: scripts/project_tools.sh coverage
 
       - name: Generate Code Coverage Report for SonarQube
-        run: |
-          scripts/run_tests.sh coverage-report
-          
+        run: scripts/project_tools.sh coverage-report
+
       - name: Run SwiftLint for SonarQube
-        run: |
-          scripts/run_tests.sh swiftlint
+        run: scripts/project_tools.sh lint
           
       - name: Setup SonarQube Scanner
         uses: warchant/setup-sonar-scanner@v8

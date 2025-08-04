@@ -169,6 +169,7 @@ show_help() {
     echo "  coverage-report   Generate code coverage report for SonarQube"
     echo "  install-deps      Install required dependencies"
     echo "  clean             Clean test and build artifacts"
+    echo "  full              Run full test suite with coverage and linting"
     echo "  help              Show this help message"
     echo ""
     echo "Examples:"
