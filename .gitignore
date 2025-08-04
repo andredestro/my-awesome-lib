@@ -99,4 +99,4 @@ iOSInjectionProject/
 # Test and CI artifacts
 TestResults.xcresult
 sonar-reports/
-build/reports/
+build/
