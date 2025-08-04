@@ -6,24 +6,16 @@
 
 set -euo pipefail
 
+# Load common utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
+
 # Default configuration (can be overridden by environment variables)
 IOS_SIMULATOR_DEVICE="${IOS_SIMULATOR_DEVICE:-iPhone 16}"
 PROJECT_NAME="${PROJECT_NAME:-__PROJECT_NAME__}"
 SCHEME_NAME="${SCHEME_NAME:-__PROJECT_NAME__}"
 XCODEPROJ_PATH="${XCODEPROJ_PATH:-__PROJECT_NAME__.xcodeproj}"
 COVERAGE_TARGET_FILTER="${COVERAGE_TARGET_FILTER:-__PROJECT_NAME__}"
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-log_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
-log_success() { echo -e "${GREEN}✅ $1${NC}"; }
-log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
-log_error() { echo -e "${RED}❌ $1${NC}"; }
 
 install_dependencies() {
     log_info "Installing dependencies..."

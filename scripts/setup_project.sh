@@ -5,29 +5,9 @@
 
 set -e  # Exit on any error
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-# Function to print colored output
-print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-
-print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
+# Load common utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
 
 # Function to validate project name
 validate_project_name() {
@@ -35,13 +15,13 @@ validate_project_name() {
     
     # Check if name is empty
     if [[ -z "$name" ]]; then
-        print_error "Project name cannot be empty"
+        log_error "Project name cannot be empty"
         return 1
     fi
     
     # Check if name contains only valid characters (letters, numbers, underscores)
     if [[ ! "$name" =~ ^[a-zA-Z][a-zA-Z0-9_]*$ ]]; then
-        print_error "Project name must start with a letter and contain only letters, numbers, and underscores"
+        log_error "Project name must start with a letter and contain only letters, numbers, and underscores"
         return 1
     fi
     
@@ -54,13 +34,13 @@ validate_bundle_identifier() {
     
     # Check if bundle identifier is empty
     if [[ -z "$bundle_id" ]]; then
-        print_error "Bundle identifier cannot be empty"
+        log_error "Bundle identifier cannot be empty"
         return 1
     fi
     
     # Check bundle identifier format (reverse domain notation)
     if [[ ! "$bundle_id" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]*(\.[a-zA-Z0-9][a-zA-Z0-9-]*)+$ ]]; then
-        print_error "Bundle identifier must be in reverse domain notation (e.g., com.company.app)"
+        log_error "Bundle identifier must be in reverse domain notation (e.g., com.company.app)"
         return 1
     fi
     
@@ -82,7 +62,7 @@ replace_in_file() {
             # Linux
             sed -i "s|${search}|${replace}|g" "$file"
         fi
-        print_status "Updated content in: $file"
+        log_info "Updated content in: $file"
     fi
 }
 
@@ -97,7 +77,7 @@ rename_items() {
         local new_dir="${dir//$old_name/$new_name}"
         if [[ "$dir" != "$new_dir" ]]; then
             mv "$dir" "$new_dir"
-            print_status "Renamed directory: $(basename "$dir") → $(basename "$new_dir")"
+            log_info "Renamed directory: $(basename "$dir") → $(basename "$new_dir")"
         fi
     done
     
@@ -106,7 +86,7 @@ rename_items() {
         local new_file="${file//$old_name/$new_name}"
         if [[ "$file" != "$new_file" ]]; then
             mv "$file" "$new_file"
-            print_status "Renamed file: $(basename "$file") → $(basename "$new_file")"
+            log_info "Renamed file: $(basename "$file") → $(basename "$new_file")"
         fi
     done
 }
@@ -122,7 +102,7 @@ main() {
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
     
-    print_status "Project root: $PROJECT_ROOT"
+    log_info "Project root: $PROJECT_ROOT"
     
     # Get project name
     while true; do
@@ -149,8 +129,8 @@ main() {
     done
     
     echo ""
-    print_status "Project Name: $PROJECT_NAME"
-    print_status "Bundle Identifier: $BUNDLE_IDENTIFIER"
+    log_info "Project Name: $PROJECT_NAME"
+    log_info "Bundle Identifier: $BUNDLE_IDENTIFIER"
     
     # Confirm setup
     echo ""
@@ -158,15 +138,15 @@ main() {
     read -r confirm
     
     if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-        print_warning "Setup cancelled"
+        log_warning "Setup cancelled"
         exit 0
     fi
     
     echo ""
-    print_status "Starting project setup..."
+    log_info "Starting project setup..."
     
     # Step 1: Replace content in all files
-    print_status "Step 1: Updating file contents..."
+    log_info "Step 1: Updating file contents..."
     
     # Find all files that might contain placeholders (excluding binary files and git)
     find "$PROJECT_ROOT" -type f \
@@ -191,7 +171,7 @@ main() {
     done
     
     # Step 2: Rename files and directories
-    print_status "Step 2: Renaming files and directories..."
+    log_info "Step 2: Renaming files and directories..."
     
     # Change to project root to avoid path issues
     cd "$PROJECT_ROOT"
@@ -200,9 +180,9 @@ main() {
     rename_items "__PROJECT_NAME__" "$PROJECT_NAME" "$PROJECT_ROOT"
     
     # Step 3: Update README.md to be a standard Xcode library README
-    print_status "Step 3: Creating standard library README..."
-    cat > "$PROJECT_ROOT/docs/README.md" << EOF
-# $PROJECT_NAME
+    log_info "Step 3: Creating standard library README..."
+    cat > "$PROJECT_ROOT/docs/README.md" <<'EOF'
+# __PROJECT_NAME__
 
 ## Development
 
@@ -211,7 +191,7 @@ main() {
 Open the Xcode project:
 
 ```bash
-open ${PROJECT_NAME}.xcodeproj
+open __PROJECT_NAME__.xcodeproj
 ```
 
 ### Building and Running
@@ -226,29 +206,32 @@ Run the tests using the Xcode Test navigator or the shortcut (⌘U).
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 EOF
+    
+    # Replace the placeholder with actual project name
+    replace_in_file "$PROJECT_ROOT/docs/README.md" "__PROJECT_NAME__" "$PROJECT_NAME"
 
     # Step 4: Clean up any remaining template artifacts
-    print_status "Step 4: Cleaning up..."
+    log_info "Step 4: Cleaning up..."
 
     # Remove docs/assets directory if it exists
     if [[ -d "$PROJECT_ROOT/docs/assets" ]]; then
         rm -rf "$PROJECT_ROOT/docs/assets"
-        print_status "Removed docs/assets directory"
+        log_info "Removed docs/assets directory"
     fi
 
     # Remove this setup script
     if [[ -f "$PROJECT_ROOT/scripts/setup_project.sh" ]]; then
         rm "$PROJECT_ROOT/scripts/setup_project.sh"
-        print_status "Removed setup script"
+        log_info "Removed setup script"
     fi
     
     echo ""
-    print_success "✅ Project setup completed successfully!"
+    log_success "✅ Project setup completed successfully!"
     echo ""
-    print_status "Your new iOS library project '$PROJECT_NAME' is ready!"
-    print_status "Location: $PROJECT_ROOT"
+    log_info "Your new iOS library project '$PROJECT_NAME' is ready!"
+    log_info "Location: $PROJECT_ROOT"
     echo ""
-    print_status "Next steps:"
+    log_info "Next steps:"
     echo "  1. Open the Xcode project:"
     echo "     open ${PROJECT_NAME}.xcodeproj"
     echo "  2. Build and run your library using Xcode."
@@ -265,12 +248,12 @@ EOF
         git add .
         git commit -m "chore: initial project setup with template"
         git push
-        print_success "Changes committed and pushed to remote repository."
+        log_success "Changes committed and pushed to remote repository."
     else
-        print_status "You can commit and push your changes manually later."
+        log_info "You can commit and push your changes manually later."
     fi
 
-    print_success "Happy coding! 🎉"
+    log_success "Happy coding! 🎉"
 }
 
 # Check if script is being run directly
