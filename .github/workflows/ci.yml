@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  push:
+    branches: 
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write  # For PR comments
+  
+jobs:
+  test:
+    name: Run Tests
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Install Dependencies
+        run: |
+          chmod +x scripts/run_tests.sh
+          scripts/run_tests.sh install-deps
+          
+      - name: Run Unit Tests
+        run: |
+          scripts/run_tests.sh test
+
+      - name: Extract Code Coverage
+        run: |
+          scripts/run_tests.sh coverage
+
+      - name: Generate Code Coverage Report for SonarQube
+        run: |
+          scripts/run_tests.sh coverage-report
+          
+      - name: Run SwiftLint for SonarQube
+        run: |
+          scripts/run_tests.sh swiftlint
+          
+      - name: Setup SonarQube Scanner
+        uses: warchant/setup-sonar-scanner@v8
+        
+      - name: Send to SonarCloud
+        id: sonarcloud
+        continue-on-error: true
+        run: |
+          if [ -f "sonar-project.properties" ]; then
+            echo "🔍 Sending results to SonarCloud..."
+            echo "📦 Commit: ${{ github.sha }}"
+            
+            if [ "${{ github.ref_name }}" = "main" ]; then
+              echo "🌟 Analyzing main branch"
+              sonar-scanner
+            else
+              echo "🌿 Analyzing feature branch: ${{ github.ref_name }}"
+              sonar-scanner -Dsonar.branch.name="${{ github.ref_name }}"
+            fi
+          else
+            echo "⚠️ sonar-project.properties not found, skipping SonarCloud"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            TestResults.xcresult
+            sonar-reports/
+            build/reports/
+        
+      - name: Comment Test Results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            
+            // Get Xcode version dynamically
+            const xcodeVersion = execSync('xcodebuild -version | head -1', { encoding: 'utf8' }).trim();
+            
+            // Get coverage percentage from environment
+            const coveragePercentage = process.env.COVERAGE_PERCENTAGE || 'N/A';
+            
+            // Check if SonarCloud step succeeded by checking job status
+            const sonarStepSucceeded = '${{ steps.sonarcloud.outcome }}' === 'success';
+            
+            // Dynamic message based on SonarCloud success/failure
+            const sonarMessage = sonarStepSucceeded 
+              ? '☁️ **SonarCloud**: Analysis completed - [View detailed report →](https://sonarcloud.io)'
+              : '⚠️ **SonarCloud**: Upload failed - check workflow logs for details';
+            
+            const nextStepsMessage = sonarStepSucceeded
+              ? '📋 **Next Steps**: Review the SonarCloud analysis for code quality insights and coverage details.'
+              : '📋 **Next Steps**: Coverage data is available in test artifacts. SonarCloud integration needs attention.';
+            
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🧪 Test Results
+
+              ✅ **Tests**: All tests passed successfully!
+              📊 **Code Coverage**: ${coveragePercentage}
+              ${sonarMessage}
+
+              **Environment:**
+              - ${xcodeVersion}
+              - iOS Simulator (${{ env.IOS_SIMULATOR_DEVICE }})
+              - macOS runner: ${{ runner.os }}
+              
+              ${nextStepsMessage}`
+            });

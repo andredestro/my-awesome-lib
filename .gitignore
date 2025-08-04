@@ -95,3 +95,8 @@ iOSInjectionProject/
 .DS_Store
 .AppleDouble
 .LSOverride
+
+# Test and CI artifacts
+TestResults.xcresult
+sonar-reports/
+build/reports/
