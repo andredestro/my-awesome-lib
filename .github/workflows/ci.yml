@@ -4,14 +4,22 @@ on:
   push:
     branches: 
       - main
-      - misc/RMET-4346/ci-cd-v2 # For testing purposes
   pull_request:
     types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
   pull-requests: write  # For PR comments
-  
+
+env:
+  PROJECT_NAME: __PROJECT_NAME__
+  SCHEME_NAME: __PROJECT_NAME__
+  XCODEPROJ_PATH: __PROJECT_NAME__.xcodeproj
+  IOS_SIMULATOR_DEVICE: iPhone 15
+  COVERAGE_TARGET_FILTER: __PROJECT_NAME__
+  BUILD_REPORTS_DIR: build/reports
+  SONAR_REPORTS_DIR: sonar-reports
+
 jobs:
   test:
     name: Run Tests
@@ -21,31 +29,74 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Make scripts executable
-        run: chmod +x scripts/*.sh
-
       - name: Install Dependencies
-        run: scripts/project_tools.sh install-deps
+        uses: ./.github/actions/install-dependencies
+        with:
+          tools: swiftlint xcbeautify
 
       - name: Run Unit Tests
-        run: scripts/project_tools.sh test
-
-      - name: Extract Code Coverage
-        run: scripts/project_tools.sh coverage
+        id: unit_tests
+        env:
+          SCHEME_NAME: ${{ env.SCHEME_NAME }}
+          XCODEPROJ_PATH: ${{ env.XCODEPROJ_PATH }}
+          IOS_SIMULATOR_DEVICE: ${{ env.IOS_SIMULATOR_DEVICE }}
+        run: |
+          set -euo pipefail
+          XCRESULT_NAME="TestResults.xcresult"
+          mkdir -p "$BUILD_REPORTS_DIR"
+          xcodebuild test \
+            -project "$XCODEPROJ_PATH" \
+            -scheme "$SCHEME_NAME" \
+            -destination "platform=iOS Simulator,name=$IOS_SIMULATOR_DEVICE" \
+            -configuration Debug \
+            -enableCodeCoverage YES \
+            -resultBundlePath "$XCRESULT_NAME" \
+            SKIP_SCRIPT_PHASES=YES \
+            CODE_SIGNING_ALLOWED=NO | xcbeautify --report junit --report-path "$BUILD_REPORTS_DIR"
+          echo "xcresult_name=$XCRESULT_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Generate Code Coverage Report for SonarQube
-        run: scripts/project_tools.sh coverage-report
+        continue-on-error: true
+        env:
+          XCRESULT_NAME: ${{ steps.unit_tests.outputs.xcresult_name }}
+        run: |
+          set -euo pipefail
+          echo "🔍 Generating SonarQube coverage report..."
+          
+          if [ ! -d "$XCRESULT_NAME" ]; then
+            echo "⚠️  $XCRESULT_NAME not found. Skipping coverage report generation."
+            exit 0
+          fi
+
+          mkdir -p ${{ env.SONAR_REPORTS_DIR }}
+          
+          echo "📦 Downloading coverage converter script..."
+          curl -sSL https://raw.githubusercontent.com/SonarSource/sonar-scanning-examples/master/swift-coverage/swift-coverage-example/xccov-to-sonarqube-generic.sh -o xccov-to-sonarqube-generic.sh
+          chmod +x xccov-to-sonarqube-generic.sh
+
+          echo "📝 Running coverage converter..."
+          ./xccov-to-sonarqube-generic.sh TestResults.xcresult > ${{ env.SONAR_REPORTS_DIR }}/sonarqube-generic-coverage.xml
+          echo "✅ SonarQube coverage report generated successfully"
 
       - name: Run SwiftLint for SonarQube
-        run: scripts/project_tools.sh lint
+        run: |
+          set -euo pipefail
+          echo "🔍 Running SwiftLint..."
+          mkdir -p ${{ env.SONAR_REPORTS_DIR }}
+          swiftlint --reporter checkstyle > "${{ env.SONAR_REPORTS_DIR }}/swiftlint.xml" || {
+            echo "⚠️ SwiftLint finished with issues."
+            exit 0
+          }
+          echo "✅ SwiftLint report generated successfully"
           
       - name: Setup SonarQube Scanner
         uses: warchant/setup-sonar-scanner@v8
-        
+
       - name: Send to SonarCloud
         id: sonarcloud
         continue-on-error: true
         run: |
+          set -euo pipefail
           if [ -z "${{ secrets.SONAR_TOKEN }}" ]; then
             echo "⚠️ SONAR_TOKEN secret is not set. Skipping SonarCloud analysis."
             exit 0
@@ -73,18 +124,37 @@ jobs:
         with:
           name: test-results
           path: |
-            TestResults.xcresult
-            sonar-reports/
-            build/reports/
-        
+            ${{ steps.unit_tests.outputs.xcresult_name }}
+            ${{ env.SONAR_REPORTS_DIR }}
+            ${{ env.BUILD_REPORTS_DIR }}
+
       - name: Comment Test Results
-        if: github.event_name == 'pull_request' && always()
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
+        env:
+          XCRESULT_NAME: ${{ steps.unit_tests.outputs.xcresult_name }}
+          PROJECT_NAME: ${{ env.PROJECT_NAME }}
         with:
           script: |
-            // Get coverage percentage from environment
-            const coveragePercentage = process.env.COVERAGE_PERCENTAGE || 'N/A';
-            
+            const { execSync } = require('child_process');
+            const fs = require('fs');
+
+            let coveragePercentage = 'N/A';
+            try {
+              const xcresultName = process.env.XCRESULT_NAME;
+              const coverageTarget = process.env.COVERAGE_TARGET_FILTER;
+              
+              if (fs.existsSync(xcresultName)) {
+                const output = execSync(`xcrun xccov view --report "${xcresultName}"`).toString();
+                const match = output.match(new RegExp(`${coverageTarget}.*?([0-9]+\\.[0-9]+%)`));
+                if (match && match[1]) {
+                  coveragePercentage = match[1];
+                }
+              }
+            } catch (e) {
+              coveragePercentage = 'N/A';
+            }
+
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,

@@ -219,8 +219,8 @@ EOF
         if [[ -f "$PODSPEC_FILE" ]]; then
             # homepage: remove .git from the end if present
             HOMEPAGE_URL="${GIT_REMOTE_URL%.git}"
-            replace_in_file "$PODSPEC_FILE" "https://github.com/OutSystems/${PROJECT_NAME}" "$HOMEPAGE_URL"
-            replace_in_file "$PODSPEC_FILE" "https://github.com/OutSystems/${PROJECT_NAME}.git" "$GIT_REMOTE_URL"
+            replace_in_file "$PODSPEC_FILE" "__HOMEPAGE_URL__" "$HOMEPAGE_URL"
+            replace_in_file "$PODSPEC_FILE" "__GIT_REMOTE_URL__" "$GIT_REMOTE_URL"
         fi
     fi
 

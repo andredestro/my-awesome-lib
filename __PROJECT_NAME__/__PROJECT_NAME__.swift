@@ -1,7 +1,7 @@
 import Foundation
 
 class __PROJECT_NAME__ {
-    // This class is a placeholder for the project name
+    // This class is a placeholder for the project
     // Add your project-specific code here
     
     func hello() -> String {

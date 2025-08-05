@@ -4,47 +4,117 @@ on:
   workflow_dispatch:
     inputs:
       bump:
-        description: 'Version bump type'
-        required: true
+        description: 'Version bump type (ignored if version is set)'
+        required: false
         type: choice
         options:
           - patch
           - minor
           - major
+      version:
+        description: 'Set specific version (e.g., 1.2.3)'
+        required: false
+
+env:
+  PROJECT_NAME: __PROJECT_NAME__
+  PBXPROJ: __PROJECT_NAME__.xcodeproj/project.pbxproj
+  CHANGELOG_PATH: docs/CHANGELOG.md
+  LICENSE_PATH: docs/LICENSE
+  PODSPEC_FILE: __PROJECT_NAME__.podspec
 
 jobs:
   prepare-release:
     name: Prepare Release
     runs-on: macos-latest
     if: github.ref_name == 'main'
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Ensure GitHub CLI is installed
+      - name: Install Dependencies
+        uses: ./.github/actions/install-dependencies
+        with:
+          tools: gh
+
+      - name: Get current project version
+        id: get_version
+        uses: ./.github/actions/get-project-version
+        with:
+          project_name: ${{ env.PROJECT_NAME }}
+
+      - name: Bump project version
+        id: bump_version
+        env:
+          CURRENT_VERSION: ${{ steps.get_version.outputs.version }}
+          INPUT_BUMP: ${{ github.event.inputs.bump }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
         run: |
-          if ! command -v gh &> /dev/null; then
-            brew install gh
+          set -euo pipefail
+          echo "⬆️ Bumping project version..."
+          if [ -n "$INPUT_VERSION" ]; then
+            NEW_VERSION="$INPUT_VERSION"
+          else
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+            PATCH="${PATCH:-0}"
+            case "$INPUT_BUMP" in
+              major)
+                MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0;;
+              minor)
+                MINOR=$((MINOR+1)); PATCH=0;;
+              *)
+                PATCH=$((PATCH+1));;
+            esac
+            NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          fi
+          echo "🔢 New version: $NEW_VERSION"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update project files
+        env:
+          PBXPROJ: ${{ env.PBXPROJ }}
+          PODSPEC_FILE: ${{ env.PODSPEC_FILE }}
+          CHANGELOG_PATH: ${{ env.CHANGELOG_PATH }}
+          NEW_VERSION: ${{ steps.bump_version.outputs.new_version }}
+        run: |
+          set -euo pipefail
+          
+          echo "🛠️ Updating MARKETING_VERSION..."
+          sed -i '' -E "s/MARKETING_VERSION = [0-9]+\.[0-9]+(\.[0-9]+)?;/MARKETING_VERSION = $NEW_VERSION;/g" "$PBXPROJ"
+          echo "🛠️ Updating CURRENT_PROJECT_VERSION..."
+          current_proj_version=$(grep -m1 'CURRENT_PROJECT_VERSION =' "$PBXPROJ" | sed -E 's/.*CURRENT_PROJECT_VERSION = ([0-9]+);/\1/')
+          new_proj_version=$((current_proj_version+1))
+          sed -i '' -E "s/CURRENT_PROJECT_VERSION = [0-9]+;/CURRENT_PROJECT_VERSION = $new_proj_version;/g" "$PBXPROJ"
+          echo "✅ Bumped MARKETING_VERSION to $NEW_VERSION, CURRENT_PROJECT_VERSION to $new_proj_version"
+
+          echo "🛠️ Updating version in $PODSPEC_FILE..."
+          if [ -f "$PODSPEC_FILE" ]; then
+            sed -i '' -E "s/^([[:space:]]*[^[:space:]]+\.version[[:space:]]*=[[:space:]]*['\"])[^'\"]+(['\"])/\1$NEW_VERSION\2/" "$PODSPEC_FILE"
+            echo "✅ Podspec version updated to $NEW_VERSION"
+          else
+            echo "⚠️ Podspec file not found: $PODSPEC_FILE"
           fi
 
-      - name: Make scripts executable
-        run: chmod +x scripts/*.sh
-
-      - name: Bump MARKETING_VERSION, CURRENT_PROJECT_VERSION and update CHANGELOG.md
-        id: bump_version
-        run: scripts/project_tools.sh version bump ${{ github.event.inputs.bump }}
-
-      - name: Set release version variable
-        id: set_version
-        run: |
-          VERSION=$(scripts/project_tools.sh version get)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📝 Updating $CHANGELOG_PATH..."
+          TODAY=$(date +%Y-%m-%d)
+          awk -v ver="$NEW_VERSION" -v today="$TODAY" '
+            BEGIN { unreleased_found=0 }
+            /^## \[Unreleased\]/ {
+              print $0; print ""; print "## [" ver "] - " today; unreleased_found=1; next
+            }
+            { print $0 }
+          ' "$CHANGELOG_PATH" > "$CHANGELOG_PATH.tmp" && mv "$CHANGELOG_PATH.tmp" "$CHANGELOG_PATH"
+          echo "✅ CHANGELOG updated for version $NEW_VERSION"
 
       - name: Create release branch, commit and push changes
+        id: create_release_branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.bump_version.outputs.new_version }}
         run: |
-          VERSION=${{ steps.set_version.outputs.version }}
+          set -euo pipefail
           BRANCH_NAME="release/v$VERSION"
           git config user.name "github-actions[bot] (on behalf of ${{ github.actor }})"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -52,40 +122,43 @@ jobs:
           git add .
           git commit -m "chore(release): prepare release v$VERSION"
           git push origin "$BRANCH_NAME"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
 
       - name: Ensure 'release' label exists
-        run: gh label create release --color FFD700 --description "Release PRs" || true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh label create release --color FFD700 --description "Release PRs" || true
 
       - name: Create Pull Request
-        run: |
-          gh pr create \
-            --title "Release v${{ steps.set_version.outputs.version }}" \
-            --body "Automated PR to release v${{ steps.set_version.outputs.version }}." \
-            --head release/v${{ steps.set_version.outputs.version }} \
-            --base main \
-            --label release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.bump_version.outputs.new_version }}
+          BRANCH_NAME: ${{ steps.create_release_branch.outputs.branch_name }}
+        run: |
+          set -euo pipefail
+          gh pr create \
+            --title "Release v$VERSION" \
+            --body "Automated PR to release v$VERSION." \
+            --head $BRANCH_NAME \
+            --base main \
+            --label release
 
       - name: Build XCFramework
-        run: scripts/project_tools.sh build
+        id: build_xcframework
+        uses: ./.github/actions/build-xcframework
+        with:
+          project_name: ${{ env.PROJECT_NAME }}
 
-      - name: Package XCFramework and LICENSE
-        run: |
-          ZIP_NAME="__PROJECT_NAME__-${{ steps.set_version.outputs.version }}.zip"
-          mkdir -p release
-          cp -R build/*.xcframework release/
-          cp docs/LICENSE release/
-          cd release
-          zip -r ../$ZIP_NAME .
-          cd ..
+      - name: Package XCFramework
+        uses: ./.github/actions/package-xcframework
+        id: package
+        with:
+          package_name: ${{ env.PROJECT_NAME }}-${{ steps.bump_version.outputs.new_version }}
+          xcframework_path: ${{ steps.build_xcframework.outputs.xcframework_path }}
+          license_path: ${{ env.LICENSE_PATH }}
 
       - name: Upload Release Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: __PROJECT_NAME__-${{ steps.set_version.outputs.version }}
-          path: __PROJECT_NAME__-${{ steps.set_version.outputs.version }}.zip
+          name: ${{ env.PROJECT_NAME }} ${{ steps.bump_version.outputs.new_version }}
+          path: ${{ steps.package.outputs.zip_name }}
