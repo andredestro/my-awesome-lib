@@ -37,7 +37,7 @@ case "$1" in
     log_info "Updating version in podspec to $new_version..."
     PODSPEC_FILE="__PROJECT_NAME__.podspec"
     if [ -f "$PODSPEC_FILE" ]; then
-      sed -i '' -E "s/(s.version\s*=\s*")[0-9]+\.[0-9]+\.[0-9]+(\")/\1$new_version\2/" "$PODSPEC_FILE"
+      sed -i '' -E "s/(s.version\s*=\s*\")[0-9]+\.[0-9]+\.[0-9]+(\")/\1$new_version\2/" "$PODSPEC_FILE"
       log_success "Podspec version updated to $new_version"
     else
       log_warning "Podspec file not found: $PODSPEC_FILE"

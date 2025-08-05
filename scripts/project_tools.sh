@@ -26,7 +26,7 @@ run_unit_tests() {
 }
 
 extract_code_coverage() {
-    "$SCRIPT_DIR/extract_code_coverage.sh" "$COVERAGE_TARGET_FILTER"
+    source "$SCRIPT_DIR/extract_code_coverage.sh" "$COVERAGE_TARGET_FILTER"
 }
 
 generate_coverage_report() {

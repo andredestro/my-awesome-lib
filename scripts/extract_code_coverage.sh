@@ -28,3 +28,8 @@ else
     log_warning "Could not extract coverage percentage for $COVERAGE_TARGET_FILTER"
     export COVERAGE_PERCENTAGE="N/A"
 fi
+
+# Only write to GITHUB_ENV if it is set (i.e., running in GitHub Actions)
+if [ -n "${GITHUB_ENV:-}" ]; then
+  echo "COVERAGE_PERCENTAGE=$COVERAGE_PERCENTAGE" >> "$GITHUB_ENV"
+fi

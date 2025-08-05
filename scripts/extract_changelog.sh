@@ -14,7 +14,6 @@ fi
 version="$1"
 CHANGELOG="docs/CHANGELOG.md"
 
-log_info "Extracting changelog for version: $version"
 if [ ! -f "$CHANGELOG" ]; then
   log_error "Changelog file not found: $CHANGELOG"
   exit 1
@@ -24,7 +23,7 @@ fi
 changelog_section=$(awk "/^## \[${version}\]/ {flag=1; next} flag && /^## \\[/ {exit} flag {print}" "$CHANGELOG" | sed '/^\s*$/d')
 if [ -n "$changelog_section" ]; then
   echo "$changelog_section"
-  log_success "Changelog for version $version extracted successfully."
 else
   log_warning "No changelog found for version $version."
+  exit 1
 fi

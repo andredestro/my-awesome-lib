@@ -82,35 +82,12 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-           const { execSync } = require('child_process');
-            
-            // Get Xcode version dynamically
-            const xcodeVersion = execSync('xcodebuild -version | head -1', { encoding: 'utf8' }).trim();
-            
             // Get coverage percentage from environment
             const coveragePercentage = process.env.COVERAGE_PERCENTAGE || 'N/A';
-            
-            // Check if SonarCloud step succeeded by checking job status
-            const sonarStepSucceeded = '${{ steps.sonarcloud.outcome }}' === 'success';
-            
-            // Dynamic message based on SonarCloud success/failure
-            const sonarMessage = sonarStepSucceeded 
-              ? '☁️ **SonarCloud**: Analysis completed - [View detailed report →](https://sonarcloud.io)'
-              : '⚠️ **SonarCloud**: Upload failed - check workflow logs for details';
             
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## 🧪 Test Results
-
-              ✅ **Tests**: All tests passed successfully!
-              📊 **Code Coverage**: ${coveragePercentage}
-              ${sonarMessage}
-
-              **Environment:**
-              - ${xcodeVersion}
-              - iOS Simulator (${{ env.IOS_SIMULATOR_DEVICE }})
-              - macOS runner: ${{ runner.os }}
-              `
+              body: `✅ **Tests**: All passed\n📊 **Coverage**: ${coveragePercentage}`
             });

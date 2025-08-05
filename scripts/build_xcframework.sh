@@ -15,7 +15,7 @@ PROJECT_NAME="$1"
 SCHEME_NAME="$2"
 XCODEPROJ_PATH="$3"
 
-install_dependencies
+"$SCRIPT_DIR/install_dependencies.sh"
 log_info "Building XCFramework..."
 rm -rf build/*.xcarchive build/*.xcframework 2>/dev/null || true
 xcodebuild archive \

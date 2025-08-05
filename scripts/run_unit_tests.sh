@@ -31,3 +31,8 @@ xcodebuild test \
     SKIP_SCRIPT_PHASES=YES \
     CODE_SIGNING_ALLOWED=NO | xcbeautify --report junit --report-path "$REPORTS_DIR"
 log_success "Unit tests completed"
+
+# Only write to GITHUB_ENV if it is set (i.e., running in GitHub Actions)
+if [ -n "${GITHUB_ENV:-}" ]; then
+  echo "IOS_SIMULATOR_DEVICE=$IOS_SIMULATOR_DEVICE" >> "$GITHUB_ENV"
+fi
