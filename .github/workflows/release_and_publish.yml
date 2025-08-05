@@ -1,0 +1,71 @@
+name: Release and Publish
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  tag_and_release:
+    name: Release and Publish
+    runs-on: macos-latest
+    if: >-
+      github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.labels.*.name, 'release')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure GitHub CLI is installed
+        run: |
+          if ! command -v gh &> /dev/null; then
+            brew install gh
+          fi
+
+      - name: Make scripts executable
+        run: chmod +x scripts/project_tools.sh
+
+      - name: Get current project version
+        id: get_version
+        run: |
+          version=$(./scripts/project_tools.sh version get)
+          echo "version=$version" >> $GITHUB_OUTPUT
+
+      - name: Get changelog for this version
+        id: changelog
+        run: |
+          version="${{ steps.get_version.outputs.version }}"
+          ./scripts/extract_changelog.sh "$version" > changes.txt
+          echo 'changelog<<EOF' >> $GITHUB_OUTPUT
+          cat changes.txt >> $GITHUB_OUTPUT
+          echo 'EOF' >> $GITHUB_OUTPUT
+
+      - name: Create tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag v${{ steps.get_version.outputs.version }}
+          git push origin v${{ steps.get_version.outputs.version }}
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create v${{ steps.get_version.outputs.version }} \
+            --title "v${{ steps.get_version.outputs.version }}" \
+            --notes "${{ steps.changelog.outputs.changelog }}"
+
+      - name: Deploy to Cocoapods
+        run: |
+          if [ -f ./__PROJECT_NAME__.podspec ]; then
+            pod trunk push ./__PROJECT_NAME__.podspec --allow-warnings
+          else
+            echo "Podspec not found, skipping deploy."
+          fi
+        env:
+          COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
+
+      - name: Delete source branch
+        if: github.event.pull_request.head.ref != 'main'
+        run: git push origin --delete ${{ github.event.pull_request.head.ref }}

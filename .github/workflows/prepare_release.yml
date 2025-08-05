@@ -1,0 +1,92 @@
+name: Prepare Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  prepare-release:
+    name: Prepare Release
+    runs-on: macos-latest
+    if: github.ref_name == 'main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure GitHub CLI is installed
+        run: |
+          if ! command -v gh &> /dev/null; then
+            brew install gh
+          fi
+
+      - name: Make scripts executable
+        run: |
+          chmod +x scripts/project_tools.sh
+
+      - name: Bump MARKETING_VERSION, CURRENT_PROJECT_VERSION and update CHANGELOG.md
+        id: bump_version
+        run: scripts/project_tools.sh version bump ${{ github.event.inputs.bump }}
+
+      - name: Set release version variable
+        id: set_version
+        run: |
+          VERSION=$(scripts/project_tools.sh version get)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create release branch, commit and push changes
+        run: |
+          VERSION=${{ steps.set_version.outputs.version }}
+          BRANCH_NAME="release/v$VERSION"
+          git config user.name "github-actions[bot] (on behalf of ${{ github.actor }})"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH_NAME"
+          git add .
+          git commit -m "chore(release): prepare release v$VERSION"
+          git push origin "$BRANCH_NAME"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Ensure 'release' label exists
+        run: gh label create release --color FFD700 --description "Release PRs" || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Pull Request
+        run: |
+          gh pr create \
+            --title "Release v${{ steps.set_version.outputs.version }}" \
+            --body "Automated PR to release v${{ steps.set_version.outputs.version }}." \
+            --head release/v${{ steps.set_version.outputs.version }} \
+            --base main \
+            --label release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build XCFramework
+        run: scripts/project_tools.sh build
+
+      - name: Package XCFramework and LICENSE
+        run: |
+          ZIP_NAME="__PROJECT_NAME__-${{ steps.set_version.outputs.version }}.zip"
+          mkdir -p release
+          cp -R build/*.xcframework release/
+          cp docs/LICENSE release/
+          cd release
+          zip -r ../$ZIP_NAME .
+          cd ..
+
+      - name: Upload Release Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: __PROJECT_NAME__-${{ steps.set_version.outputs.version }}
+          path: __PROJECT_NAME__-${{ steps.set_version.outputs.version }}.zip

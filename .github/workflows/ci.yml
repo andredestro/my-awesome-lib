@@ -4,6 +4,7 @@ on:
   push:
     branches: 
       - main
+      - misc/RMET-4346/ci-cd-v2 # For testing purposes
   pull_request:
     types: [opened, synchronize, reopened]
 

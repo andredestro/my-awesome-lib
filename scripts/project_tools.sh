@@ -18,115 +18,31 @@ XCODEPROJ_PATH="${XCODEPROJ_PATH:-__PROJECT_NAME__.xcodeproj}"
 COVERAGE_TARGET_FILTER="${COVERAGE_TARGET_FILTER:-__PROJECT_NAME__}"
 
 install_dependencies() {
-    log_info "Installing dependencies..."
-
-    # Install SwiftLint
-    if ! command -v swiftlint &> /dev/null; then
-        log_info "Installing SwiftLint..."
-        brew install swiftlint
-    else
-        log_success "SwiftLint already installed"
-    fi
-
-    # Install xcbeautify for better output formatting
-    if ! command -v xcbeautify &> /dev/null; then
-        log_info "Installing xcbeautify..."
-        brew install xcbeautify
-    else
-        log_success "xcbeautify already installed"
-    fi
-
-    # Install slather for coverage conversion
-    if ! gem list slather -i &> /dev/null; then
-        log_info "Installing slather..."
-        gem install slather
-    else
-        log_success "slather already installed"
-    fi
-
-    log_success "All dependencies installed"
+    "$SCRIPT_DIR/install_dependencies.sh"
 }
 
 run_unit_tests() {
-    log_info "Running unit tests..."
-    mkdir -p build/reports
-    rm -rf TestResults.xcresult || true
-    xcodebuild test \
-        -project "$XCODEPROJ_PATH" \
-        -scheme "$SCHEME_NAME" \
-        -destination "platform=iOS Simulator,name=$IOS_SIMULATOR_DEVICE" \
-        -configuration Debug \
-        -enableCodeCoverage YES \
-        -resultBundlePath TestResults.xcresult \
-        SKIP_SCRIPT_PHASES=YES \
-        CODE_SIGNING_ALLOWED=NO | xcbeautify --report junit --report-path build/reports
-    log_success "Unit tests completed"
+    "$SCRIPT_DIR/run_unit_tests.sh" "$XCODEPROJ_PATH" "$SCHEME_NAME" "$IOS_SIMULATOR_DEVICE"
 }
 
 extract_code_coverage() {
-    log_info "Extracting code coverage..."
-    if [ ! -d "TestResults.xcresult" ]; then log_warning "TestResults.xcresult not found."; export COVERAGE_PERCENTAGE="N/A"; return 1; fi
-    coverage_percentage=$(xcrun xccov view --report TestResults.xcresult | grep "$COVERAGE_TARGET_FILTER" | head -1 | grep -o '[0-9]\+\.[0-9]\+%' | head -1)
-    if [ -n "$coverage_percentage" ]; then
-        log_success "Code coverage ($COVERAGE_TARGET_FILTER): $coverage_percentage"
-        export COVERAGE_PERCENTAGE="$coverage_percentage"
-    else
-        log_warning "Could not extract coverage percentage for $COVERAGE_TARGET_FILTER"
-        export COVERAGE_PERCENTAGE="N/A"
-    fi
+    "$SCRIPT_DIR/extract_code_coverage.sh" "$COVERAGE_TARGET_FILTER"
 }
 
 generate_coverage_report() {
-    log_info "Generating code coverage report..."
-    if [ ! -d "TestResults.xcresult" ]; then log_warning "TestResults.xcresult not found."; return 1; fi
-    mkdir -p sonar-reports
-    if slather coverage --sonarqube-xml --output-directory sonar-reports --scheme "$SCHEME_NAME" "$XCODEPROJ_PATH"; then
-        if [ -f "sonar-reports/sonarqube-generic-coverage.xml" ]; then
-            log_success "Coverage converted successfully with Slather"
-        else
-            log_warning "Slather succeeded but output file not found"
-        fi
-    else
-        log_error "Slather failed to generate coverage report"
-    fi
+    "$SCRIPT_DIR/generate_coverage_report.sh" "$SCHEME_NAME" "$XCODEPROJ_PATH"
 }
 
 run_swiftlint() {
-    log_info "Running SwiftLint analysis..."
-    mkdir -p sonar-reports
-    swiftlint --reporter checkstyle > "sonar-reports/$PROJECT_NAME-swiftlint.xml" || true
-    log_success "SwiftLint analysis completed"
+    "$SCRIPT_DIR/run_swiftlint.sh" "$PROJECT_NAME"
 }
 
 build_xcframework() {
-    install_dependencies
-    log_info "Building XCFramework..."
-    rm -rf build/*.xcarchive build/*.xcframework 2>/dev/null || true
-    xcodebuild archive \
-        -scheme "$PROJECT_NAME" \
-        -configuration Release \
-        -destination 'generic/platform=iOS Simulator' \
-        -archivePath "build/${PROJECT_NAME}.framework-iphonesimulator.xcarchive" \
-        SKIP_INSTALL=NO \
-        BUILD_LIBRARIES_FOR_DISTRIBUTION=YES | xcbeautify
-    xcodebuild archive \
-        -scheme "$PROJECT_NAME" \
-        -configuration Release \
-        -destination 'generic/platform=iOS' \
-        -archivePath "build/${PROJECT_NAME}.framework-iphoneos.xcarchive" \
-        SKIP_INSTALL=NO \
-        BUILD_LIBRARIES_FOR_DISTRIBUTION=YES | xcbeautify
-    xcodebuild -create-xcframework \
-        -framework "build/${PROJECT_NAME}.framework-iphonesimulator.xcarchive/Products/Library/Frameworks/${PROJECT_NAME}.framework" \
-        -framework "build/${PROJECT_NAME}.framework-iphoneos.xcarchive/Products/Library/Frameworks/${PROJECT_NAME}.framework" \
-        -output "build/${PROJECT_NAME}.xcframework"
-    log_success "XCFramework built successfully"
+    "$SCRIPT_DIR/build_xcframework.sh" "$PROJECT_NAME" "$SCHEME_NAME" "$XCODEPROJ_PATH"
 }
 
 clean_artifacts() {
-    log_info "Cleaning test and build artifacts..."
-    rm -rf TestResults.xcresult build/reports sonar-reports ./scripts/build
-    log_success "Artifacts cleaned"
+    "$SCRIPT_DIR/clean_artifacts.sh"
 }
 
 display_test_summary() {
@@ -170,12 +86,14 @@ show_help() {
     echo "  install-deps      Install required dependencies"
     echo "  clean             Clean test and build artifacts"
     echo "  full              Run full test suite with coverage and linting"
+    echo "  version           Project versioning operations (bump|get)"
     echo "  help              Show this help message"
     echo ""
     echo "Examples:"
     echo "  ./scripts/project_tools.sh build"
     echo "  ./scripts/project_tools.sh test"
-    echo "  ./scripts/project_tools.sh full"
+    echo "  ./scripts/project_tools.sh version bump minor"
+    echo "  ./scripts/project_tools.sh version get"
 }
 
 main() {
@@ -188,6 +106,7 @@ main() {
         "install-deps") install_dependencies ;;
         "clean") clean_artifacts ;;
         "full") run_full_test_suite ;;
+        "version") shift; bash "$SCRIPT_DIR/version.sh" "$@" ;;
         "help"|"-h"|"--help") show_help ;;
         *) log_error "Unknown command: $1"; show_help; exit 1 ;;
     esac
