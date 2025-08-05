@@ -210,8 +210,22 @@ EOF
     # Replace the placeholder with actual project name
     replace_in_file "$PROJECT_ROOT/docs/README.md" "__PROJECT_NAME__" "$PROJECT_NAME"
 
-    # Step 4: Clean up any remaining template artifacts
-    log_info "Step 4: Cleaning up..."
+    # Step 4: Update podspec URLs with the remote repository URL, if available
+    log_info "Step 4: Updating podspec URLs if remote repository is set..."
+
+    GIT_REMOTE_URL=$(git config --get remote.origin.url 2>/dev/null || echo "")
+    if [[ -n "$GIT_REMOTE_URL" ]]; then
+        PODSPEC_FILE="$PROJECT_ROOT/${PROJECT_NAME}.podspec"
+        if [[ -f "$PODSPEC_FILE" ]]; then
+            # homepage: remove .git from the end if present
+            HOMEPAGE_URL="${GIT_REMOTE_URL%.git}"
+            replace_in_file "$PODSPEC_FILE" "https://github.com/OutSystems/${PROJECT_NAME}" "$HOMEPAGE_URL"
+            replace_in_file "$PODSPEC_FILE" "https://github.com/OutSystems/${PROJECT_NAME}.git" "$GIT_REMOTE_URL"
+        fi
+    fi
+
+    # Step 5: Clean up any remaining template artifacts
+    log_info "Step 5: Cleaning up..."
 
     # Remove docs/assets directory if it exists
     if [[ -d "$PROJECT_ROOT/docs/assets" ]]; then

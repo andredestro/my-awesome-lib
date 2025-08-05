@@ -7,7 +7,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
-
 if [ $# -lt 3 ] || [ $# -gt 5 ]; then
   log_error "Usage: $0 <XCODEPROJ_PATH> <SCHEME_NAME> <IOS_SIMULATOR_DEVICE> [REPORTS_DIR] [XCRESULT_NAME]"
   exit 1

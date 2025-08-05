@@ -24,7 +24,7 @@ jobs:
           fi
 
       - name: Make scripts executable
-        run: chmod +x scripts/project_tools.sh
+        run: chmod +x scripts/*.sh
 
       - name: Get current project version
         id: get_version
@@ -58,6 +58,10 @@ jobs:
 
       - name: Deploy to Cocoapods
         run: |
+          if [ -z "${COCOAPODS_TRUNK_TOKEN:-}" ]; then
+            echo "⚠️ COCOAPODS_TRUNK_TOKEN secret not set, skipping deploy."
+            exit 0
+          fi
           if [ -f ./__PROJECT_NAME__.podspec ]; then
             pod trunk push ./__PROJECT_NAME__.podspec --allow-warnings
           else
