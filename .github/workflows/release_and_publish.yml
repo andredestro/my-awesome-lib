@@ -77,3 +77,16 @@ jobs:
       - name: Delete source branch
         if: github.event.pull_request.head.ref != 'main'
         run: git push origin --delete ${{ github.event.pull_request.head.ref }}
+
+  delete_branch_only:
+    name: Delete Source Branch Only
+    runs-on: macos-latest
+    if: >-
+      github.event.pull_request.merged == false &&
+      github.event.pull_request.head.ref != 'main' &&
+      contains(github.event.pull_request.labels.*.name, 'release')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Delete source branch
+        run: git push origin --delete ${{ github.event.pull_request.head.ref }}
