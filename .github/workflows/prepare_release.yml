@@ -16,16 +16,17 @@ on:
         required: false
 
 env:
-  PROJECT_NAME: __PROJECT_NAME__
-  PBXPROJ: __PROJECT_NAME__.xcodeproj/project.pbxproj
+  PROJECT_NAME: MyAwesomeLib
+  PBXPROJ: MyAwesomeLib.xcodeproj/project.pbxproj
+  XCODE_VERSION: 16.4
   CHANGELOG_PATH: docs/CHANGELOG.md
   LICENSE_PATH: docs/LICENSE
-  PODSPEC_FILE: __PROJECT_NAME__.podspec
+  PODSPEC_FILE: MyAwesomeLib.podspec
 
 jobs:
   prepare-release:
     name: Prepare Release
-    runs-on: macos-latest
+    runs-on: macos-15
     if: github.ref_name == 'main'
     
     steps:
@@ -148,6 +149,7 @@ jobs:
         uses: ./.github/actions/build-xcframework
         with:
           project_name: ${{ env.PROJECT_NAME }}
+          xcode-version: ${{ env.XCODE_VERSION }}
 
       - name: Package XCFramework
         uses: ./.github/actions/package-xcframework

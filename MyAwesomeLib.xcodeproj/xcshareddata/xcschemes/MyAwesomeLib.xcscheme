@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "882FF0742E40C1040093DE00"
-               BuildableName = "__PROJECT_NAME__.framework"
-               BlueprintName = "__PROJECT_NAME__"
-               ReferencedContainer = "container:__PROJECT_NAME__.xcodeproj">
+               BuildableName = "MyAwesomeLib.framework"
+               BlueprintName = "MyAwesomeLib"
+               ReferencedContainer = "container:MyAwesomeLib.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -36,9 +36,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "882FF07D2E40C1060093DE00"
-               BuildableName = "__PROJECT_NAME__Tests.xctest"
-               BlueprintName = "__PROJECT_NAME__Tests"
-               ReferencedContainer = "container:__PROJECT_NAME__.xcodeproj">
+               BuildableName = "MyAwesomeLibTests.xctest"
+               BlueprintName = "MyAwesomeLibTests"
+               ReferencedContainer = "container:MyAwesomeLib.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -64,9 +64,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "882FF0742E40C1040093DE00"
-            BuildableName = "__PROJECT_NAME__.framework"
-            BlueprintName = "__PROJECT_NAME__"
-            ReferencedContainer = "container:__PROJECT_NAME__.xcodeproj">
+            BuildableName = "MyAwesomeLib.framework"
+            BlueprintName = "MyAwesomeLib"
+            ReferencedContainer = "container:MyAwesomeLib.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
    </ProfileAction>

@@ -6,6 +6,10 @@ inputs:
     description: Name of the Xcode project or scheme
     required: true
 
+  xcode-version:
+    description: Xcode version to use (e.g., 16.4)
+    required: true
+
 outputs:
   xcframework_path:
     description: Final path to the generated XCFramework
@@ -14,6 +18,11 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: Set Xcode version
+      uses: ../set-xcode-version
+      with:
+        xcode-version: ${{ inputs.xcode-version }}
+        
     - name: Build XCFramework
       id: build
       shell: bash

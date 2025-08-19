@@ -7,15 +7,15 @@ on:
       - 'main'
 
 env:
-  PROJECT_NAME: __PROJECT_NAME__
+  PROJECT_NAME: MyAwesomeLib
   CHANGELOG_PATH: docs/CHANGELOG.md
   LICENSE_PATH: docs/LICENSE
-  PODSPEC_FILE: __PROJECT_NAME__.Podspec
+  PODSPEC_FILE: MyAwesomeLib.Podspec
 
 jobs:
   tag_and_release:
     name: Release and Publish
-    runs-on: macos-latest
+    runs-on: macos-15
     if: >-
       github.event.pull_request.merged == true &&
       contains(github.event.pull_request.labels.*.name, 'release')
@@ -124,7 +124,7 @@ jobs:
 
   delete_branch_only:
     name: Delete Source Branch Only
-    runs-on: macos-latest
+    runs-on: macos-15
     if: >-
       github.event.pull_request.merged == false &&
       github.event.pull_request.head.ref != 'main' &&

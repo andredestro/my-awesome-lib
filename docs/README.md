@@ -1,52 +1,23 @@
-# OSLibraryTemplate-iOS
+# MyAwesomeLib
 
-Welcome to **OSLibraryTemplate-iOS**. This repository serves as a template to create repositories used to build iOS libraries. This file will guide you through that process, that is defined by three sequential steps:
+## Development
 
-1. Use the current repository as the template for the new one.
-2. Clone the new repository on our machine.
-3. Run a script that updates the created repository with the correct information.
+### Opening the Project
 
-These steps are detailed in the next sections.
+Open the Xcode project:
 
-:warning: Every step listed here must be successfully completed before you start working on the new repository.
-
-## Create a Repository Based on the Template
-
-First, we need to create a new repository. To accomplish this, please press the **Use this template** button available on the repository's GitHub webpage.
-
-![Use this template button](./assets/useThisTemplateButton.png)
-
-Next, you have to define the new repository's name. 
-
-The following image shows an example of the creation of a repository for the iOS' Payments Library.
-
-![Example for payments repository name](./assets/repositoryNameExample.png)
-
-After filling up the form as needed, the last step to effectively create the repository is the click on the **Create repository from template** button.
-
-![Create repository from template button](./assets/createRepositoryButton.png)
-
-## Clone the New Repository
-
-After completing the previous step, the next one is something common done in every repository a developer needs to do work on: clone the repository on the local machine.
-
-## Run the **setup_project.sh**
-
-To finish the process, we just have one last thing to do. Run the **setup_project.sh** script that automates a couple of changes we need to apply. It is included in the _scripts_ folder.
-
-To run the script, please execute the following commands on **Terminal**:
-
-```
-cd scripts
-sh setup_project.sh
+```bash
+open MyAwesomeLib.xcodeproj
 ```
 
-Here's what the script does:
+### Building and Running
 
-- Prompts the user for the project name and bundle identifier, validating both.
-- Replaces all placeholders in all project files.
-- Renames files and directories that contain the project name placeholder.
-- Updates the README.md to reflect the new project name.
-- Removes example/template files and directories (such as docs/assets).
-- Deletes itself (the setup script) after execution.
-- Asks if the user wants to commit and push the changes (optional).
+Use Xcode to build and run the project as usual.
+
+### Testing
+
+Run the tests using the Xcode Test navigator or the shortcut (⌘U).
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
