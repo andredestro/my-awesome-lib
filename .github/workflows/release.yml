@@ -8,6 +8,7 @@ on:
 
 env:
   PROJECT_NAME: MyAwesomeLib
+  XCODE_VERSION: 16.4
   CHANGELOG_PATH: docs/CHANGELOG.md
   LICENSE_PATH: docs/LICENSE
   PODSPEC_FILE: MyAwesomeLib.Podspec
@@ -60,6 +61,11 @@ jobs:
             echo "⚠️ No release notes found for version $VERSION."
             exit 0
           fi
+
+      - name: Set Xcode version
+        uses: ./.github/actions/set-xcode-version
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
 
       - name: Build XCFramework
         id: build_xcframework
