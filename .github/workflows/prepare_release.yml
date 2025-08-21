@@ -15,10 +15,6 @@ on:
         description: 'Set specific version (e.g., 1.2.3)'
         required: false
 
-permissions:
-  contents: write
-  pull-requests: write
-
 env:
   PROJECT_NAME: MyAwesomeLib
   PBXPROJ: MyAwesomeLib.xcodeproj/project.pbxproj
@@ -60,6 +56,10 @@ jobs:
           set -euo pipefail
           echo "⬆️ Bumping project version..."
           if [ -n "$INPUT_VERSION" ]; then
+            if ! [[ "$INPUT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "❌ Version must be in format M.m.p (e.g., 1.2.3)"
+              exit 1
+            fi
             NEW_VERSION="$INPUT_VERSION"
           else
             IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
