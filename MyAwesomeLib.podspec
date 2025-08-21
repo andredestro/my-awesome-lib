@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = "MyAwesomeLib"
-  s.version          = "1.0.0"
+  s.version          = "1.0.a"
   s.summary          = "A short description of MyAwesomeLib."
   s.description      = <<-DESC
     A longer description of MyAwesomeLib.
