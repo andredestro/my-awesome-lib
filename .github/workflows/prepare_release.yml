@@ -15,6 +15,10 @@ on:
         description: 'Set specific version (e.g., 1.2.3)'
         required: false
 
+permissions:
+  contents: write
+  pull-requests: write
+
 env:
   PROJECT_NAME: MyAwesomeLib
   PBXPROJ: MyAwesomeLib.xcodeproj/project.pbxproj
