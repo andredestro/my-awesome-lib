@@ -138,31 +138,41 @@ jobs:
         uses: actions/github-script@v7
         env:
           XCRESULT_NAME: ${{ steps.unit_tests.outputs.xcresult_name }}
-          PROJECT_NAME: ${{ env.PROJECT_NAME }}
+          COVERAGE_TARGET_FILTER: ${{ env.COVERAGE_TARGET_FILTER }}
         with:
           script: |
             const { execSync } = require('child_process');
             const fs = require('fs');
 
+            console.log('📝 Starting to comment test results...');
             let coveragePercentage = 'N/A';
             try {
               const xcresultName = process.env.XCRESULT_NAME;
               const coverageTarget = process.env.COVERAGE_TARGET_FILTER;
-              
+              console.log(`Checking result file: ${xcresultName}`);
               if (fs.existsSync(xcresultName)) {
+                console.log('Result file found. Calculating coverage...');
                 const output = execSync(`xcrun xccov view --report "${xcresultName}"`).toString();
                 const match = output.match(new RegExp(`${coverageTarget}.*?([0-9]+\\.[0-9]+%)`));
                 if (match && match[1]) {
                   coveragePercentage = match[1];
+                  console.log(`Coverage found: ${coveragePercentage}`);
+                } else {
+                  console.log('Coverage not found in report.');
                 }
+              } else {
+                console.log('Result file not found.');
               }
             } catch (e) {
+              console.error('Error calculating coverage:', e);
               coveragePercentage = 'N/A';
             }
 
+            console.log('Commenting on PR with test results and coverage...');
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: `✅ **Tests**: All passed\n📊 **Coverage**: ${coveragePercentage}`
             });
+            console.log('Comment sent successfully.');
